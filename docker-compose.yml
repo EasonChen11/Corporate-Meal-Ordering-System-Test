@@ -9,6 +9,7 @@ services:
         required: false
     volumes:
       - .:/app
+      - uploads:/app/uploads
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -43,6 +44,7 @@ services:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - uploads:/srv/uploads:ro
     ports:
       - "80:80"
       - "443:443"
@@ -54,3 +56,4 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+  uploads:
