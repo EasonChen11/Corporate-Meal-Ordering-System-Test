@@ -8,31 +8,34 @@ pipeline {
             }
         }
 
-        stage('Set up Python') {
+        stage('Run Python Tests (Docker)') {
             steps {
-                sh 'python3 --version'
-            }
-        }
-
-        stage('Install dependencies') {
-            steps {
-                sh 'pip3 install -r requirements.txt'
-            }
-        }
-
-        stage('Run backend tests') {
-            steps {
-                sh 'pytest backend/tests'
+                script {
+                    docker.image('python:3.12').inside {
+                        sh '''
+                        python --version
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
+                        pytest backend/tests
+                        '''
+                    }
+                }
             }
         }
 
         stage('Build backend image') {
+            when {
+                branch 'main'
+            }
             steps {
                 sh 'docker build -f backend/Dockerfile -t meal-ordering-backend:test .'
             }
         }
 
         stage('Build frontend image') {
+            when {
+                branch 'main'
+            }
             steps {
                 sh 'docker build -t meal-ordering-frontend:test ./frontend'
             }
