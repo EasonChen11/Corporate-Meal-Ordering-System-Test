@@ -14,8 +14,8 @@ pipeline {
                     docker.image('python:3.12').inside {
                         sh '''
                         python --version
-                        pip install --upgrade pip
-                        pip install -r requirements.txt
+                        pip install --user -r requirements.txt
+			export PATH=$PATH:$HOME/.local/bin
                         pytest backend/tests
                         '''
                     }
