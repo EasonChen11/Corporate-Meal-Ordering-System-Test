@@ -22,6 +22,11 @@ pipeline {
         withCredentials([string(credentialsId: 'gh-pat', variable: 'GH_TOKEN')]) {
           sh '''
             set -euo pipefail
+            STATE_LOWER=$(printf '%s' "${PR_STATE:-}" | tr '[:upper:]' '[:lower:]')
+            if [ "$STATE_LOWER" != "closed" ]; then
+              echo "[skip] PR_STATE='${PR_STATE:-}' is not closed; refusing to drop"
+              exit 0
+            fi
             SLUG=$(bash scripts/preview-sanitize-branch.sh "$BRANCH_NAME")
             PROJECT="${PROJECT_PREFIX}-${SLUG}"
             if docker compose ls --filter name="${PROJECT}" --format json \\
