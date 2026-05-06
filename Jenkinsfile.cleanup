@@ -1,0 +1,48 @@
+pipeline {
+  agent any
+  options { timeout(time: 10, unit: 'MINUTES'); timestamps() }
+
+  environment {
+    PROJECT_PREFIX = 'mealorder'
+    DEPLOY_PATH    = '/home/nol/Corporate-Meal-Ordering-System'
+  }
+
+  // Hourly sweep + webhook-triggered single drop. The webhook trigger plugin
+  // sets BRANCH_NAME / PR_STATE in env when it fires; absent during cron run.
+  triggers {
+    cron('H * * * *')
+  }
+
+  stages {
+    stage('Checkout') { steps { checkout scm } }
+
+    stage('Webhook drop') {
+      when { expression { return (env.BRANCH_NAME ?: '') != '' } }
+      steps {
+        withCredentials([string(credentialsId: 'gh-pat', variable: 'GH_TOKEN')]) {
+          sh '''
+            set -euo pipefail
+            SLUG=$(bash scripts/preview-sanitize-branch.sh "$BRANCH_NAME")
+            PROJECT="${PROJECT_PREFIX}-${SLUG}"
+            if docker compose ls --filter name="^${PROJECT}$" --format json \\
+                | jq -e 'length > 0' >/dev/null; then
+              echo "[drop] $PROJECT (webhook for branch=$BRANCH_NAME state=${PR_STATE:-?})"
+              docker compose -p "$PROJECT" down -v --remove-orphans
+            else
+              echo "[noop] no project $PROJECT to drop"
+            fi
+          '''
+        }
+      }
+    }
+
+    stage('Hourly sweep') {
+      when { expression { return (env.BRANCH_NAME ?: '') == '' } }
+      steps {
+        withCredentials([string(credentialsId: 'gh-pat', variable: 'GH_TOKEN')]) {
+          sh 'bash scripts/preview-sweep-stale.sh'
+        }
+      }
+    }
+  }
+}
