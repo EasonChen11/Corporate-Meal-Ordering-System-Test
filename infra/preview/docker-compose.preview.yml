@@ -1,0 +1,27 @@
+# Override applied on top of the root docker-compose.yml when deploying a preview stack.
+# Strips host ports so multiple stacks coexist; joins gateway to shared preview-net so the
+# shared caddy-preview-router can reach it via docker DNS.
+services:
+  backend:
+    ports: !reset []
+    labels:
+      mealorder.branch: ${BRANCH_RAW:-}
+    environment:
+      ROOT_PATH: ${ROOT_PATH:-}
+  frontend:
+    ports: !reset []
+    labels:
+      mealorder.branch: ${BRANCH_RAW:-}
+  db:
+    ports: !reset []
+    labels:
+      mealorder.branch: ${BRANCH_RAW:-}
+  gateway:
+    ports: !reset []
+    networks: [default, preview-net]
+    labels:
+      mealorder.branch: ${BRANCH_RAW:-}
+
+networks:
+  preview-net:
+    external: true

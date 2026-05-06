@@ -1,0 +1,15 @@
+# Shared preview router. Listens on :80 inside the preview-net.
+# /preview/<branch>/...  -> mealorder-<branch>-gateway:80   (with prefix stripped)
+:80 {
+    @preview path_regexp br ^/preview/([a-z0-9-]+)(/.*)?$
+    handle @preview {
+        uri strip_prefix /preview/{re.br.1}
+        reverse_proxy http://mealorder-{re.br.1}-gateway:80 {
+            health_uri /health
+            fail_duration 5s
+        }
+    }
+    handle {
+        respond "preview-router OK" 200
+    }
+}
