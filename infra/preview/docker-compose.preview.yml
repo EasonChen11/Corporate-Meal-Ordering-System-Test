@@ -18,6 +18,7 @@ services:
       mealorder.branch: ${BRANCH_RAW:-}
   gateway:
     ports: !reset []
+    container_name: mealorder-${SLUG:-default}-gateway
     networks: [default, preview-net]
     labels:
       mealorder.branch: ${BRANCH_RAW:-}

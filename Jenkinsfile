@@ -68,7 +68,7 @@ pipeline {
               exit 1
             fi
 
-            BRANCH_RAW="$BRANCH_RAW" ROOT_PATH="$ROOT_PATH" docker compose \
+            BRANCH_RAW="$BRANCH_RAW" ROOT_PATH="$ROOT_PATH" SLUG="$SLUG" docker compose \
               -p "$PROJECT" \
               -f docker-compose.yml \
               -f infra/preview/docker-compose.preview.yml \
