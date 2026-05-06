@@ -20,7 +20,7 @@ for proj in $PROJECTS; do
   fi
 
   STATE=$(gh pr list --head "$BRANCH" --state all --json state \
-    --jq '.[0].state // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
+    --jq 'if map(select(.state == "OPEN")) | length > 0 then "OPEN" else (.[0].state // "UNKNOWN") end' 2>/dev/null || echo "UNKNOWN")
 
   case "$STATE" in
     CLOSED|MERGED)

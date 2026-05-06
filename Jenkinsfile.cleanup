@@ -24,8 +24,8 @@ pipeline {
             set -euo pipefail
             SLUG=$(bash scripts/preview-sanitize-branch.sh "$BRANCH_NAME")
             PROJECT="${PROJECT_PREFIX}-${SLUG}"
-            if docker compose ls --filter name="^${PROJECT}$" --format json \\
-                | jq -e 'length > 0' >/dev/null; then
+            if docker compose ls --filter name="${PROJECT}" --format json \\
+                | jq -e --arg p "$PROJECT" 'map(select(.Name == $p)) | length > 0' >/dev/null; then
               echo "[drop] $PROJECT (webhook for branch=$BRANCH_NAME state=${PR_STATE:-?})"
               docker compose -p "$PROJECT" down -v --remove-orphans
             else
