@@ -21,7 +21,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
-    needs: unit            # ← add this line
+    needs: unit
     services:
       postgres:
         image: postgres:16
