@@ -1,0 +1,16 @@
+# Override applied for staging stack: strip host ports, join gateway to preview-net
+# so the shared caddy-preview-router can reach it via docker DNS.
+services:
+  backend:
+    ports: !reset []
+  frontend:
+    ports: !reset []
+  db:
+    ports: !reset []
+  gateway:
+    ports: !reset []
+    networks: [default, preview-net]
+
+networks:
+  preview-net:
+    external: true

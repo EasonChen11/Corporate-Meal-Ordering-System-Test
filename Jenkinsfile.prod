@@ -1,0 +1,87 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 20, unit: 'MINUTES')
+    timestamps()
+  }
+
+  environment {
+    DEPLOY_PATH              = "${env.DEPLOY_PATH ?: '/home/nol/Corporate-Meal-Ordering-System'}"
+    COMPOSE_PROJECT_NAME     = 'mealorder-prod'
+    ROOT_PATH                = '/meal'
+    GATEWAY_CONTAINER_NAME   = 'mealorder-prod-gateway'
+    PUBLIC_HEALTH_URL        = "${env.PUBLIC_HEALTH_URL ?: 'https://nol.cs.nycu.edu.tw/meal/health'}"
+  }
+
+  stages {
+    stage('Validate tag') {
+      steps {
+        script {
+          def tag = env.TAG_NAME
+          if (!tag || !(tag ==~ /^v\d+\.\d+\.\d+$/)) {
+            error("Prod pipeline must be triggered by a semver tag matching ^v\\d+\\.\\d+\\.\\d+\$. Got: branch=${env.BRANCH_NAME} tag=${tag}")
+          }
+          echo "Deploying tag ${tag} to production"
+        }
+      }
+    }
+
+    stage('Checkout tag') {
+      steps {
+        sh '''
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          git fetch --all --tags --prune
+          git checkout --detach "refs/tags/${TAG_NAME}"
+        '''
+      }
+    }
+
+    stage('Build and deploy prod') {
+      steps {
+        sh '''
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          docker network inspect preview-net >/dev/null 2>&1 \
+            || docker network create preview-net
+          ROOT_PATH="$ROOT_PATH" \
+          GATEWAY_CONTAINER_NAME="$GATEWAY_CONTAINER_NAME" \
+            docker compose -p "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml \
+            -f infra/preview/docker-compose.prod.yml \
+            build
+          ROOT_PATH="$ROOT_PATH" \
+          GATEWAY_CONTAINER_NAME="$GATEWAY_CONTAINER_NAME" \
+            docker compose -p "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml \
+            -f infra/preview/docker-compose.prod.yml \
+            up -d
+        '''
+      }
+    }
+
+    stage('Smoke check') {
+      steps {
+        sh '''
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "$PUBLIC_HEALTH_URL" >/dev/null; then
+              echo "prod /health OK for ${TAG_NAME}"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "prod /health failed after 60s for ${TAG_NAME}" >&2
+          docker compose -p "$COMPOSE_PROJECT_NAME" logs --tail=200 >&2 || true
+          exit 1
+        '''
+      }
+    }
+  }
+
+  post {
+    always { cleanWs() }
+  }
+}

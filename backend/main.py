@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,7 +8,7 @@ from backend.routes import admin_vendors, committee_reviews, health
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(title=settings.app_name, root_path=os.getenv("ROOT_PATH", ""))
 
     app.add_middleware(
         CORSMiddleware,
