@@ -2,10 +2,6 @@ pipeline {
   agent any
   options { timeout(time: 10, unit: 'MINUTES'); timestamps() }
 
-  environment {
-    DEPLOY_PATH = '/home/nol/Corporate-Meal-Ordering-System'
-  }
-
   // Hourly defensive sweep. PR preview is disabled (TBD), so this should
   // normally be a no-op; it exists to clean stray mealorder-pr-* projects
   // if previews are temporarily re-enabled.
@@ -21,7 +17,6 @@ pipeline {
         withCredentials([string(credentialsId: 'gh-pat', variable: 'GH_TOKEN')]) {
           sh '''
             set -euo pipefail
-            cd "$DEPLOY_PATH"
             bash scripts/preview-sweep-stale.sh
           '''
         }

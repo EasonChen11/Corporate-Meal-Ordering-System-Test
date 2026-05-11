@@ -10,15 +10,12 @@ This setup supports the Trunk-Based Development pipeline:
 
 ## Prerequisites
 
-- Docker (with compose v2), git, curl, jq, gh CLI installed
-- Repo cloned at `/home/nol/Corporate-Meal-Ordering-System` (adjust `DEPLOY_PATH` below if different)
+- Docker (with compose v2), curl, jq installed on the host
 - Jenkins already serves `https://nol.cs.nycu.edu.tw/jenkins/`
 
-```bash
-export DEPLOY_PATH=/home/nol/Corporate-Meal-Ordering-System
-cd "$DEPLOY_PATH"
-git pull
-```
+> **Note**: a persistent source-code clone on the NOL host is **no longer required**. Jenkins checks
+> out the repo into its own workspace and runs `docker compose` from there. The host only needs the
+> Docker daemon — no `/home/nol/Corporate-Meal-Ordering-System` directory needed.
 
 ## 1. Shared docker network
 
@@ -27,10 +24,14 @@ docker network inspect preview-net >/dev/null 2>&1 \
   || docker network create preview-net
 ```
 
-## 2. Shared internal router
+## 2. Shared internal router (run from any directory)
+
+The router script can be run from any checkout (e.g. a one-time clone, or from inside a Jenkins
+workspace). After initial setup, the router container is persistent and does not need to be re-run.
 
 ```bash
-bash "$DEPLOY_PATH/infra/preview/router/run-router.sh"
+# Example using a temporary checkout — or any path that has the repo files:
+bash infra/preview/router/run-router.sh
 curl -s http://127.0.0.1:18080/ ; echo
 # expect: preview-router OK
 ```
@@ -103,14 +104,31 @@ In the Jenkins UI:
 2. **Pipeline → Pipeline script from SCM**, script path: `Jenkinsfile.cleanup`, branch `main`.
 3. 不需額外 trigger（cron 由 Jenkinsfile 內部宣告）。
 
-## 7. Jenkins credentials
+## 7. Jenkins-service mount requirements
+
+The Jenkins container only needs one host mount: the Docker socket, so it can run `docker compose`
+on the host daemon.
+
+```yaml
+# Minimum jenkins-service volume mounts (in docker-compose or systemd unit):
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+  - jenkins_home:/var/jenkins_home
+```
+
+There is **no** per-project source mount needed. Jenkins checks out each project into its own
+ephemeral workspace (`$WORKSPACE`) and `docker compose` runs from there. Adding a new project means
+writing a `Jenkinsfile` — the jenkins-service container does not need to be reconfigured or
+restarted.
+
+## 8. Jenkins credentials
 
 | ID | Type | Used for |
 |---|---|---|
 | `gh-pat` | Secret text | `gh pr list` in sweep |
 | `github-app` | GitHub App or PAT | Branch source |
 
-## 8. Cutover from legacy `mealorder-main`
+## 9. Cutover from legacy `mealorder-main`
 
 舊架構是 `mealorder-main` 直接吃 root path。新架構下 root 還給靜態網站，prod 走 `/meal/`。Cutover：
 
@@ -121,17 +139,16 @@ curl -sk https://nol.cs.nycu.edu.tw/meal-staging/health
 # 2. 從本機打第一個 tag（從 main 上某個 commit）
 git tag v0.1.0
 git push origin v0.1.0
-# Jenkins mealorder-prod 會自動跑
+# Jenkins mealorder-prod 會自動跑（workspace-based，無需 host 上有 source clone）
 
 # 3. 等 prod 通了
 curl -sk https://nol.cs.nycu.edu.tw/meal/health
 
 # 4. 砍掉舊 stack（在 NOL host 上執行）
-cd "$DEPLOY_PATH"
 docker compose -p mealorder-main down -v --remove-orphans
 ```
 
-## 9. End-to-end 驗證
+## 10. End-to-end 驗證
 
 開一個 throwaway branch、改一行、開 PR，確認：
 
