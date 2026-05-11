@@ -8,7 +8,6 @@ pipeline {
   }
 
   environment {
-    DEPLOY_PATH              = "${env.DEPLOY_PATH ?: '/home/nol/Corporate-Meal-Ordering-System'}"
     COMPOSE_PROJECT_NAME     = 'mealorder-prod'
     ROOT_PATH                = '/meal'
     GATEWAY_CONTAINER_NAME   = 'mealorder-prod-gateway'
@@ -28,22 +27,14 @@ pipeline {
       }
     }
 
-    stage('Checkout tag') {
-      steps {
-        sh '''
-          set -euo pipefail
-          cd "$DEPLOY_PATH"
-          git fetch --all --tags --prune
-          git checkout --detach "refs/tags/${TAG_NAME}"
-        '''
-      }
+    stage('Checkout') {
+      steps { checkout scm }
     }
 
     stage('Build and deploy prod') {
       steps {
         sh '''
           set -euo pipefail
-          cd "$DEPLOY_PATH"
           docker network inspect preview-net >/dev/null 2>&1 \
             || docker network create preview-net
           ROOT_PATH="$ROOT_PATH" \
