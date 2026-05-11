@@ -2,13 +2,7 @@
 	auto_https disable_redirects
 }
 
-http://localhost {
-	redir https://localhost{uri}
-}
-
-https://localhost {
-	tls internal
-
+(routes) {
 	handle /health {
 		reverse_proxy backend:8000
 	}
@@ -28,4 +22,17 @@ https://localhost {
 	handle {
 		reverse_proxy frontend:80
 	}
+}
+
+# Plain HTTP on :80 — accepts any Host header so the internal preview-router
+# (which proxies with Host: mealorder-<env>-gateway) can reach the same routes.
+:80 {
+	import routes
+}
+
+# Local-dev HTTPS entry point. Browsers hitting https://localhost get the same
+# routing tree with a self-signed cert.
+https://localhost {
+	tls internal
+	import routes
 }
