@@ -1,14 +1,31 @@
-# Shared preview router. Listens on :80 inside the preview-net.
-# /preview/<branch>/...  -> mealorder-<branch>-gateway:80   (with prefix stripped)
+# Shared internal router for all backend-managed paths on NOL.
+# Outer nginx forwards: /preview/*, /meal-staging/*, /meal/* -> this router (127.0.0.1:18080).
 :80 {
-    @preview path_regexp br ^/preview/([a-z0-9-]+)(/.*)?$
-    handle @preview {
-        uri strip_prefix /preview/{re.br.1}
-        reverse_proxy http://mealorder-{re.br.1}-gateway:80 {
+    # Stable environments
+    handle_path /meal-staging/* {
+        reverse_proxy http://mealorder-staging-gateway:80 {
             health_uri /health
             fail_duration 5s
         }
     }
+
+    handle_path /meal/* {
+        reverse_proxy http://mealorder-prod-gateway:80 {
+            health_uri /health
+            fail_duration 5s
+        }
+    }
+
+    # Legacy PR preview dispatcher (job currently disabled; left for future re-enable).
+    @preview path_regexp br ^/preview/([a-z0-9-]+)(/.*)?$
+    handle @preview {
+        uri strip_prefix /preview/{re.br.1}
+        reverse_proxy mealorder-{re.br.1}-gateway:80 {
+            health_uri /health
+            fail_duration 5s
+        }
+    }
+
     handle {
         respond "preview-router OK" 200
     }
