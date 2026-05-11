@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # Sweep: drop preview stacks whose corresponding PR is CLOSED or MERGED.
-# OPEN or unknown -> leave alone. Never touches mealorder-main.
+# OPEN or unknown -> leave alone. Never touches stable stacks (main/staging/prod).
 set -euo pipefail
 
 PROJECT_PREFIX="${PROJECT_PREFIX:-mealorder}"
 
 PROJECTS=$(docker compose ls --filter name=${PROJECT_PREFIX}- --format json \
-  | jq -r '.[] | select(.Name != "'"${PROJECT_PREFIX}"'-main") | .Name')
+  | jq -r --arg p "$PROJECT_PREFIX" '
+      .[]
+      | select(.Name != ($p + "-main"))
+      | select(.Name != ($p + "-staging"))
+      | select(.Name != ($p + "-prod"))
+      | .Name')
 
 for proj in $PROJECTS; do
   # Recover original branch name from container label (set in compose override).

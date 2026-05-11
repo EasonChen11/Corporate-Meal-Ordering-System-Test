@@ -3,12 +3,12 @@ pipeline {
   options { timeout(time: 10, unit: 'MINUTES'); timestamps() }
 
   environment {
-    PROJECT_PREFIX = 'mealorder'
-    DEPLOY_PATH    = '/home/nol/Corporate-Meal-Ordering-System'
+    DEPLOY_PATH = '/home/nol/Corporate-Meal-Ordering-System'
   }
 
-  // Hourly sweep + webhook-triggered single drop. The webhook trigger plugin
-  // sets BRANCH_NAME / PR_STATE in env when it fires; absent during cron run.
+  // Hourly defensive sweep. PR preview is disabled (TBD), so this should
+  // normally be a no-op; it exists to clean stray mealorder-pr-* projects
+  // if previews are temporarily re-enabled.
   triggers {
     cron('H * * * *')
   }
@@ -16,36 +16,14 @@ pipeline {
   stages {
     stage('Checkout') { steps { checkout scm } }
 
-    stage('Webhook drop') {
-      when { expression { return (env.BRANCH_NAME ?: '') != '' } }
+    stage('Hourly sweep') {
       steps {
         withCredentials([string(credentialsId: 'gh-pat', variable: 'GH_TOKEN')]) {
           sh '''
             set -euo pipefail
-            STATE_LOWER=$(printf '%s' "${PR_STATE:-}" | tr '[:upper:]' '[:lower:]')
-            if [ "$STATE_LOWER" != "closed" ]; then
-              echo "[skip] PR_STATE='${PR_STATE:-}' is not closed; refusing to drop"
-              exit 0
-            fi
-            SLUG=$(bash scripts/preview-sanitize-branch.sh "$BRANCH_NAME")
-            PROJECT="${PROJECT_PREFIX}-${SLUG}"
-            if docker compose ls --filter name="${PROJECT}" --format json \\
-                | jq -e --arg p "$PROJECT" 'map(select(.Name == $p)) | length > 0' >/dev/null; then
-              echo "[drop] $PROJECT (webhook for branch=$BRANCH_NAME state=${PR_STATE:-?})"
-              docker compose -p "$PROJECT" down -v --remove-orphans
-            else
-              echo "[noop] no project $PROJECT to drop"
-            fi
+            cd "$DEPLOY_PATH"
+            bash scripts/preview-sweep-stale.sh
           '''
-        }
-      }
-    }
-
-    stage('Hourly sweep') {
-      when { expression { return (env.BRANCH_NAME ?: '') == '' } }
-      steps {
-        withCredentials([string(credentialsId: 'gh-pat', variable: 'GH_TOKEN')]) {
-          sh 'bash scripts/preview-sweep-stale.sh'
         }
       }
     }
