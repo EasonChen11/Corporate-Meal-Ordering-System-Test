@@ -1,0 +1,19 @@
+# Apply on top of docker-compose.yml for local development with hot reload + bind mounts:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  backend:
+    volumes:
+      - .:/app
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+  frontend:
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+  db:
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
+  gateway:
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
