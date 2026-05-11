@@ -8,11 +8,11 @@ pipeline {
   }
 
   environment {
-    DEPLOY_PATH              = '/home/nol/Corporate-Meal-Ordering-System'
+    DEPLOY_PATH              = "${env.DEPLOY_PATH ?: '/home/nol/Corporate-Meal-Ordering-System'}"
     COMPOSE_PROJECT_NAME     = 'mealorder-staging'
     ROOT_PATH                = '/meal-staging'
     GATEWAY_CONTAINER_NAME   = 'mealorder-staging-gateway'
-    PUBLIC_HEALTH_URL        = 'https://nol.cs.nycu.edu.tw/meal-staging/health'
+    PUBLIC_HEALTH_URL        = "${env.PUBLIC_HEALTH_URL ?: 'https://nol.cs.nycu.edu.tw/meal-staging/health'}"
   }
 
   stages {

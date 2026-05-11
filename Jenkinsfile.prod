@@ -8,33 +8,27 @@ pipeline {
   }
 
   environment {
-    DEPLOY_PATH              = '/home/nol/Corporate-Meal-Ordering-System'
+    DEPLOY_PATH              = "${env.DEPLOY_PATH ?: '/home/nol/Corporate-Meal-Ordering-System'}"
     COMPOSE_PROJECT_NAME     = 'mealorder-prod'
     ROOT_PATH                = '/meal'
     GATEWAY_CONTAINER_NAME   = 'mealorder-prod-gateway'
-    PUBLIC_HEALTH_URL        = 'https://nol.cs.nycu.edu.tw/meal/health'
+    PUBLIC_HEALTH_URL        = "${env.PUBLIC_HEALTH_URL ?: 'https://nol.cs.nycu.edu.tw/meal/health'}"
   }
 
   stages {
     stage('Validate tag') {
-      when {
-        allOf {
-          buildingTag()
-          expression { return env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/ }
-        }
-      }
       steps {
-        echo "Deploying tag ${env.TAG_NAME} to production"
+        script {
+          def tag = env.TAG_NAME
+          if (!tag || !(tag ==~ /^v\d+\.\d+\.\d+$/)) {
+            error("Prod pipeline must be triggered by a semver tag matching ^v\\d+\\.\\d+\\.\\d+\$. Got: branch=${env.BRANCH_NAME} tag=${tag}")
+          }
+          echo "Deploying tag ${tag} to production"
+        }
       }
     }
 
     stage('Checkout tag') {
-      when {
-        allOf {
-          buildingTag()
-          expression { return env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/ }
-        }
-      }
       steps {
         sh '''
           set -euo pipefail
@@ -46,12 +40,6 @@ pipeline {
     }
 
     stage('Build and deploy prod') {
-      when {
-        allOf {
-          buildingTag()
-          expression { return env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/ }
-        }
-      }
       steps {
         sh '''
           set -euo pipefail
@@ -75,12 +63,6 @@ pipeline {
     }
 
     stage('Smoke check') {
-      when {
-        allOf {
-          buildingTag()
-          expression { return env.TAG_NAME ==~ /^v\d+\.\d+\.\d+$/ }
-        }
-      }
       steps {
         sh '''
           set -euo pipefail
