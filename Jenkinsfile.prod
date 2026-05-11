@@ -60,10 +60,16 @@ pipeline {
             || docker network create preview-net
           ROOT_PATH="$ROOT_PATH" \
           GATEWAY_CONTAINER_NAME="$GATEWAY_CONTAINER_NAME" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" build
+            docker compose -p "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml \
+            -f infra/preview/docker-compose.prod.yml \
+            build
           ROOT_PATH="$ROOT_PATH" \
           GATEWAY_CONTAINER_NAME="$GATEWAY_CONTAINER_NAME" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" up -d
+            docker compose -p "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml \
+            -f infra/preview/docker-compose.prod.yml \
+            up -d
         '''
       }
     }

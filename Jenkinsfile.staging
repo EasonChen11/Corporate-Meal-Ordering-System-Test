@@ -42,10 +42,16 @@ pipeline {
           cd "$DEPLOY_PATH"
           docker network inspect preview-net >/dev/null 2>&1 \
             || docker network create preview-net
-          docker compose -p "$COMPOSE_PROJECT_NAME" down -v --remove-orphans || true
+          docker compose -p "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml \
+            -f infra/preview/docker-compose.staging.yml \
+            down -v --remove-orphans || true
           ROOT_PATH="$ROOT_PATH" \
           GATEWAY_CONTAINER_NAME="$GATEWAY_CONTAINER_NAME" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" up -d --build
+            docker compose -p "$COMPOSE_PROJECT_NAME" \
+            -f docker-compose.yml \
+            -f infra/preview/docker-compose.staging.yml \
+            up -d --build
         '''
       }
     }
@@ -69,12 +75,6 @@ pipeline {
       }
     }
 
-    stage('Prune dangling images') {
-      when { branch 'main' }
-      steps {
-        sh 'docker image prune -f'
-      }
-    }
   }
 
   post {
